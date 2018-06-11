@@ -52,6 +52,8 @@ class TwoInputSequential(nn.Sequential, TwoInputModule):
             if isinstance(module, TwoInputModule):
                 input1 = module.forward(input1, input2)
             else:
+                if input1.dim() != 4:
+                    print("DIM 4 ==========================", input1)
                 input1 = module.forward(input1)
         return input1
 

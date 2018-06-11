@@ -42,13 +42,13 @@ for subset in ['val', 'train']:
         mem_A_np.append(np.asarray(Image.open(A).convert('RGB').resize((64,64), Image.BICUBIC)))
         mem_B_np.append(np.asarray(Image.open(B).convert('RGB').resize((64,64), Image.BICUBIC)))
         if i % 1000 == 0:
-            print i
+            print(i)
     full_A = np.stack(mem_A_np)
     full_B = np.stack(mem_B_np)
 
     A_size = len(mem_A_np)
     B_size = len(mem_B_np)
-    print "%sA size=%d" % (subset, A_size)
-    print "%sB size=%d" % (subset, B_size)
+    print("%sA size=%d" % (subset, A_size))
+    print("%sB size=%d" % (subset, B_size))
     np.save(os.path.join(root, "%sA" % subset), full_A)
     np.save(os.path.join(root, "%sB" % subset), full_B)

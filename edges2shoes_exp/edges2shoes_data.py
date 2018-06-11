@@ -6,8 +6,12 @@ import random
 import io
 import torchvision.transforms as transforms
 import numpy as np
+import math
 
+IMG_SIZE = 64
+#DEV_SIZE = 200
 DEV_SIZE = 200
+TEST_SIZE = 2
 
 def load_edges2shoes(root):
     """loads in memory numpy data files"""
@@ -19,20 +23,49 @@ def load_edges2shoes(root):
         arr = arr / 127.5 - 1.
         return arr.astype('float32')
 
-    print "loading data numpy files..."
-    trainA = _load("trainA.npy")
-    trainB = _load("trainB.npy")
-    testA  = _load("valA.npy")
-    testB  = _load("valB.npy")
-    print "done."
+    print("loading data numpy files...")
+    trainA = _load("trainA_{}.npy".format(IMG_SIZE))
+    trainB = _load("trainB_{}.npy".format(IMG_SIZE))
+    
+    testA  = _load("valA_{}.npy".format(IMG_SIZE))
+    testB  = _load("valB_{}.npy".format(IMG_SIZE))
+    testA  = testA[:TEST_SIZE]
+    testB  = testB[:TEST_SIZE]
+
+    print("done.")
+
+    lenA = len(trainA)
+    lenB = len(trainB)
 
     # shuffle train data
     rand_state = random.getstate()
     random.seed(123)
-    indx = range(len(trainA))
-    random.shuffle(indx)
-    trainA = trainA[indx]
-    trainB = trainB[indx]
+    indxA = list(range(lenA))
+    indxB = list(range(lenB))
+
+    random.shuffle(indxA)
+    random.shuffle(indxB)
+    trainA = trainA[indxA]
+    trainB = trainB[indxB]
+
+    # Make sure that the lengths of the datasets are the same
+    if lenA > lenB:
+        n_batches = math.ceil(lenA/lenB)
+        for i in range(1,n_batches):
+            # shuffle train data
+            random.shuffle(indxB)
+            trainB = np.concatenate((trainB, trainB[indxB]))
+            if len(trainA) > lenB:
+                trainB = trainB[:lenA]
+    else:
+        n_batches = math.ceil(lenB/lenA)
+        for i in range(1,n_batches):
+            # shuffle train data
+            random.shuffle(indxA)
+            trainA = np.concatenate((trainA, trainA[indxA]))
+            if len(trainA) > lenB:
+                trainA = trainA[:lenB]
+
     random.setstate(rand_state)
 
     devA = trainA[:DEV_SIZE]
@@ -59,12 +92,12 @@ class AlignedIterator(object):
         batch_size = kwargs.get('batch_size', 100)
         shuffle = kwargs.get('shuffle', False)
 
-        self.n_batches = self.num_samples / batch_size
-        if self.num_samples % batch_size != 0:
-            self.n_batches += 1
 
         self.batch_size = batch_size
-
+        #self.n_batches = self.num_samples / batch_size
+        self.n_batches = math.ceil(self.num_samples / self.batch_size)
+        # if self.num_samples % batch_size != 0:
+        #    self.n_batches += 1
         self.shuffle = shuffle
 
         self.reset()
@@ -79,17 +112,24 @@ class AlignedIterator(object):
             self.data_indices = np.arange(self.num_samples)
         self.batch_idx = 0
 
-    def next(self):
+    def __next__(self):
         if self.batch_idx == self.n_batches:
             self.reset()
             raise StopIteration
 
         idx = self.batch_idx * self.batch_size
+        if idx > self.num_samples: 
+            idx = 0
+
+
         chosen_indices = self.data_indices[idx:idx+self.batch_size]
         self.batch_idx += 1
 
         return {'A': torch.from_numpy(self.data_A[chosen_indices]),
                 'B': torch.from_numpy(self.data_B[chosen_indices])}
+
+    # Python 3.X compatibility
+    # __next__  = next
 
     def __len__(self):
         return self.num_samples
@@ -107,9 +147,9 @@ class UnalignedIterator(object):
         self.num_samples = data_A.shape[0]
 
         self.batch_size = kwargs.get('batch_size', 100)
-        self.n_batches = self.num_samples / self.batch_size
-        if self.num_samples % self.batch_size != 0:
-            self.n_batches += 1
+        self.n_batches = math.ceil(self.num_samples / self.batch_size)
+        #if self.num_samples % self.batch_size != 0:
+        #    self.n_batches += 1
 
         self.reset()
 
@@ -120,12 +160,15 @@ class UnalignedIterator(object):
         self.data_indices = [np.random.permutation(self.num_samples) for _ in range(2)]
         self.batch_idx = 0
 
-    def next(self):
+    def __next__(self):
         if self.batch_idx == self.n_batches:
             self.reset()
             raise StopIteration
 
-        idx = self.batch_idx * self.batch_size
+        idx = self.batch_idx * self.batch_size 
+        if idx > self.num_samples: 
+            idx = 0
+
         chosen_indices_A = self.data_indices[0][idx:idx+self.batch_size]
         chosen_indices_B = self.data_indices[1][idx:idx+self.batch_size]
 
@@ -133,6 +176,9 @@ class UnalignedIterator(object):
 
         return {'A': torch.from_numpy(self.data_A[chosen_indices_A]),
                 'B': torch.from_numpy(self.data_B[chosen_indices_B])}
+
+    # Python 3.X compatibility
+    # __next__  = next
 
     def __len__(self):
         return self.num_samples

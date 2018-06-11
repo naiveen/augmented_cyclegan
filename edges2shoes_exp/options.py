@@ -1,8 +1,8 @@
 import argparse
 import os
 import torch
-import cPickle as pkl
-
+# import cPickle as pkl
+import pickle as pkl
 
 def create_sub_dirs(opt, sub_dirs):
     for sub_dir in sub_dirs:
@@ -96,8 +96,8 @@ class TrainOptions(object):
                 self.opt.gpu_ids.append(id)
 
         # Set gpu ids
-        if len(self.opt.gpu_ids) > 0:
-            torch.cuda.set_device(self.opt.gpu_ids[0])
+        #if len(self.opt.gpu_ids) > 0:
+        #    torch.cuda.set_device(self.opt.gpu_ids[0])
 
         # save to the disk
         expr_dir = os.path.join(self.opt.checkpoints_dir, self.opt.name)
@@ -120,7 +120,7 @@ class TrainOptions(object):
             opt_file.write('-------------- End ----------------\n')
 
         file_name = os.path.join(expr_dir, 'opt.pkl')
-        with open(file_name, 'w') as opt_file:
+        with open(file_name, 'wb') as opt_file:
             pkl.dump(args, opt_file)
 
         # create sub dirs

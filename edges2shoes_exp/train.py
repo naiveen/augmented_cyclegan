@@ -59,19 +59,20 @@ def visualize_cycle(opt, real_A, visuals, eidx, uidx, train):
     copyfile(save_path, os.path.join(opt.vis_latest, 'cycle.png'))
 
 def visualize_multi(opt, real_A, model, eidx, uidx):
-    size = real_A.size()
-    # all samples in real_A share the same prior_z_B
-    multi_prior_z_B = Variable(real_A.data.new(opt.num_multi,
-        opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1), volatile=True)
-    multi_fake_B = model.generate_multi(real_A.detach(), multi_prior_z_B)
-    multi_fake_B = multi_fake_B.data.cpu().view(
-        size[0], opt.num_multi, size[1], size[2], size[3])
-    vis_multi_image = torch.cat([real_A.data.cpu().unsqueeze(1), multi_fake_B], dim=1) \
-        .view(size[0]*(opt.num_multi+1),size[1],size[2],size[3])
-    save_path = os.path.join(opt.vis_multi, 'multi_%02d_%04d.png' % (eidx, uidx))
-    vutils.save_image(vis_multi_image.cpu(), save_path,
-        normalize=True, range=(-1,1), nrow=opt.num_multi+1)
-    copyfile(save_path, os.path.join(opt.vis_latest, 'multi.png'))
+    with torch.no_grad():
+        size = real_A.size()
+        # all samples in real_A share the same prior_z_B
+        multi_prior_z_B = Variable(real_A.data.new(opt.num_multi,
+            opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1))
+        multi_fake_B = model.generate_multi(real_A.detach(), multi_prior_z_B)
+        multi_fake_B = multi_fake_B.data.cpu().view(
+            size[0], opt.num_multi, size[1], size[2], size[3])
+        vis_multi_image = torch.cat([real_A.data.cpu().unsqueeze(1), multi_fake_B], dim=1) \
+            .view(size[0]*(opt.num_multi+1),size[1],size[2],size[3])
+        save_path = os.path.join(opt.vis_multi, 'multi_%02d_%04d.png' % (eidx, uidx))
+        vutils.save_image(vis_multi_image.cpu(), save_path,
+            normalize=True, range=(-1,1), nrow=opt.num_multi+1)
+        copyfile(save_path, os.path.join(opt.vis_latest, 'multi.png'))
 
 def visualize_inference(opt, real_A, real_B, model, eidx, uidx):
     size = real_A.size()
@@ -79,6 +80,7 @@ def visualize_inference(opt, real_A, real_B, model, eidx, uidx):
     real_B = real_B[:opt.num_multi]
     # all samples in real_A share the same post_z_B
     multi_fake_B = model.inference_multi(real_A.detach(), real_B.detach())
+    # This fails if the DEV_SIZE = 2. WTF????
     multi_fake_B = multi_fake_B.data.cpu().view(
         size[0], opt.num_multi, size[1], size[2], size[3])
 
@@ -100,7 +102,7 @@ def train_model():
     use_gpu = len(opt.gpu_ids) > 0
 
     if opt.seed is not None:
-        print "using random seed:", opt.seed
+        print("using random seed:", opt.seed)
         random.seed(opt.seed)
         np.random.seed(opt.seed)
         torch.manual_seed(opt.seed)
@@ -110,6 +112,7 @@ def train_model():
     if opt.numpy_data:
         trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot)
         train_dataset = UnalignedIterator(trainA, trainB, batch_size=opt.batchSize)
+
         print_log(out_f, '#training images = %d' % len(train_dataset))
         vis_inf = False
 
@@ -188,6 +191,7 @@ def train_model():
 
         for i, data in enumerate(train_dataset):
             real_A, real_B = Variable(data['A']), Variable(data['B'])
+            print("================================ ", real_A.shape, real_B.shape)
             if real_A.size(0) != real_B.size(0):
                 continue
             prior_z_B = Variable(real_A.data.new(real_A.size(0), opt.nlatent, 1, 1).normal_(0, 1))
@@ -207,7 +211,8 @@ def train_model():
 
             # supervised training
             if opt.supervised:
-                sup_data = sup_train_dataset.next()
+                #sup_data = sup_train_dataset.next()
+                sup_data = next(sup_train_dataset)
                 sup_real_A, sup_real_B = Variable(sup_data['A']), Variable(sup_data['B'])
                 if use_gpu:
                     sup_real_A, sup_real_B = sup_real_A.cuda(), sup_real_B.cuda()
@@ -218,7 +223,8 @@ def train_model():
                 # visualize current training batch
                 visualize_cycle(opt, real_A, visuals, epoch, epoch_iter/opt.batchSize, train=True)
 
-                dev_data = dev_cycle.next()
+                #dev_data = dev_cycle.next()
+                dev_data = next(dev_cycle)
                 dev_real_A, dev_real_B = Variable(dev_data['A']), Variable(dev_data['B'])
                 dev_prior_z_B = Variable(dev_real_A.data.new(dev_real_A.size(0),
                                                              opt.nlatent, 1, 1).normal_(0, 1))
@@ -254,7 +260,7 @@ def train_model():
         #####################
         # evaluate mappings
         #####################
-        if epoch % opt.eval_A_freq == 0:
+        if False: # epoch % opt.eval_A_freq == 0:
             t = time.time()
             dev_mse_A = eval_mse_A(dev_dataset, model)
             test_mse_A = eval_mse_A(test_dataset, model)
@@ -275,7 +281,7 @@ def train_model():
             res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
             print_log(out_f, res_str)
 
-        if epoch % opt.eval_B_freq == 0:
+        if False: # epoch % opt.eval_B_freq == 0:
             t = time.time()
             if opt.model == 'cycle_gan':
                 steps = 1
