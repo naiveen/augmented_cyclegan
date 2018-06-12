@@ -1,0 +1,10 @@
+# Our library
+-e .[gpu]
+
+# others
+ipython
+pylama==7.4.1
+#
+http://distrib.borgy.elementai.lan/python/borgy-job-service-client/borgy-job-service-client-1.0.0.tar.gz
+torchvision
+
