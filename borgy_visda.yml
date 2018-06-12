@@ -1,0 +1,11 @@
+image: images.borgy.elementai.lan/perouz/perouz_repl_gen_augcgan:latest
+command: ["bash", "-c", "CUDA_VISIBLE_DEVICES=0 python augmented_cyclegan/edges2shoes_exp/train.py --dataroot augmented_cyclegan/datasets/visda2018/ --name augcgan_model --niter 20000 --checkpoints_dir './checkpoints/visda2018' --batchSize 32"]
+name: aug_cycleGAN
+reqCores: 3
+reqGpus: 5
+reqRamGbytes: 32
+volumes: 
+    - /mnt/home/perouz/repl_gen/Experiments/augCycleGANs:/eai/project
+    - /mnt/projects/:/eai/projects
+workdir:
+    "/eai/project"
