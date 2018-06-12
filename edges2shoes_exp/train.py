@@ -110,9 +110,15 @@ def train_model():
             torch.cuda.manual_seed_all(opt.seed)
 
     if opt.numpy_data:
-        trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot)
+        trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot, opt.imgSize)
         train_dataset = UnalignedIterator(trainA, trainB, batch_size=opt.batchSize)
 
+        print("Train dataset in train_model:", trainA.shape)
+        # Make sure you never run with a batch of size 1
+        if trainA.shape[0]<=1:
+            return
+
+        print("Training data", trainA.shape)
         print_log(out_f, '#training images = %d' % len(train_dataset))
         vis_inf = False
 
@@ -191,8 +197,7 @@ def train_model():
 
         for i, data in enumerate(train_dataset):
             real_A, real_B = Variable(data['A']), Variable(data['B'])
-            print("================================ ", real_A.shape, real_B.shape)
-            if real_A.size(0) != real_B.size(0):
+            if real_A.size(0) != real_B.size(0) or real_A.size(0) <= 1 or real_B.size(0) <=1:
                 continue
             prior_z_B = Variable(real_A.data.new(real_A.size(0), opt.nlatent, 1, 1).normal_(0, 1))
 

@@ -8,12 +8,13 @@ import torchvision.transforms as transforms
 import numpy as np
 import math
 
-IMG_SIZE = 64
-#DEV_SIZE = 200
+#img_size = 128 
+# img_size = 64
+# DEV_SIZE = 200
 DEV_SIZE = 200
 TEST_SIZE = 2
 
-def load_edges2shoes(root):
+def load_edges2shoes(root, img_size=64):
     """loads in memory numpy data files"""
     def _load(fname):
         arr = np.load(os.path.join(root, fname))
@@ -24,11 +25,11 @@ def load_edges2shoes(root):
         return arr.astype('float32')
 
     print("loading data numpy files...")
-    trainA = _load("trainA_{}.npy".format(IMG_SIZE))
-    trainB = _load("trainB_{}.npy".format(IMG_SIZE))
+    trainA = _load("trainA_{}.npy".format(img_size))
+    trainB = _load("trainB_{}.npy".format(img_size))
     
-    testA  = _load("valA_{}.npy".format(IMG_SIZE))
-    testB  = _load("valB_{}.npy".format(IMG_SIZE))
+    testA  = _load("valA_{}.npy".format(img_size))
+    testB  = _load("valB_{}.npy".format(img_size))
     testA  = testA[:TEST_SIZE]
     testB  = testB[:TEST_SIZE]
 

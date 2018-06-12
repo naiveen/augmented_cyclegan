@@ -326,7 +326,7 @@ class Discriminator(nn.Module):
             norm_layer(2*ndf),
             nn.LeakyReLU(0.2, True),
 
-            nn.Conv2d(2*ndf, 4*ndf, kernel_size=kw, stride=1, padding=1, bias=use_bias),
+            nn.Conv2d(2*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(4*ndf),
             nn.LeakyReLU(0.2, True),
 
@@ -371,6 +371,10 @@ class Discriminator_edges(nn.Module):
             nn.LeakyReLU(0.2, True),
 
             nn.Conv2d(2*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(4*ndf),
+            nn.LeakyReLU(0.2, True),
+
+            nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(4*ndf),
             nn.LeakyReLU(0.2, True),
 
@@ -425,6 +429,8 @@ class DiscriminatorLatent(nn.Module):
 
     def forward(self, input):
         if input.dim() == 4:
+            #nlatent_temp = input.size(1)*input.size(2)*input.size(3)
+            #input = input.view(input.size(0), nlatent)
             input = input.view(input.size(0), self.nlatent)
 
         if len(self.gpu_ids)>1 and isinstance(input.data, torch.cuda.FloatTensor):
@@ -458,6 +464,10 @@ class LatentEncoder(nn.Module):
             norm_layer(8*nef),
             nn.ReLU(True),
 
+            nn.Conv2d(8*nef, 8*nef, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(8*nef),
+            nn.ReLU(True),
+
             nn.Conv2d(8*nef, 8*nef, kernel_size=4, stride=1, padding=0, bias=use_bias),
             norm_layer(8*nef),
             nn.ReLU(True),
@@ -479,5 +489,6 @@ class LatentEncoder(nn.Module):
             conv_out = self.conv_modules(input)
             mu = self.enc_mu(conv_out)
             logvar = self.enc_logvar(conv_out)
+            # print("LatentEncoder.forward", mu.shape, logvar.shape, conv_out.shape)
         return (mu.view(mu.size(0), -1), logvar.view(logvar.size(0), -1))
 

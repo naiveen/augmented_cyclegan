@@ -412,6 +412,7 @@ class AugmentedCycleGAN(object):
         else:
             mu_z_realB, logvar_z_realB = self.netE_B.forward(real_B)
 
+        # print("post_z_realB", mu_z_realB.size())
         if self.opt.stoch_enc:
             post_z_realB = gauss_reparametrize(mu_z_realB, logvar_z_realB)
         else:
@@ -426,6 +427,7 @@ class AugmentedCycleGAN(object):
         loss_D_fake_B, loss_D_true_B, pred_fake_B, pred_true_B = \
             discriminate(self.netD_B, self.criterionGAN, fake_B.detach(), real_B)
 
+        # print("loss_D_post_z_B", self.netD_z_B, post_z_realB.shape, prior_z_B.shape)
         loss_D_post_z_B, loss_D_prior_z_B, pred_post_z_B, pred_prior_z_B = \
             discriminate(self.netD_z_B, self.criterionGAN, post_z_realB.detach(), prior_z_B)
 

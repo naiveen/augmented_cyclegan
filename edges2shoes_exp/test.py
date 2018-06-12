@@ -121,6 +121,7 @@ def eval_bpp_MVGauss_B(dataset, mu, logvar):
     return np.mean(bpp)
 
 def compute_bpp_MVGauss_B(dataroot):
+    ########## WARNING: THIS WILL ASSUME IMAGES OF SIZE 64 BY DEFAULT ############
     trainA, trainB, devA, devB, testA, testB = load_edges2shoes(dataroot)
     train_dataset = UnalignedIterator(trainA, trainB, batch_size=200)
     print('#training images = %d' % len(train_dataset))
@@ -220,7 +221,7 @@ def test_model():
 
     use_gpu = len(opt.gpu_ids) > 0
 
-    trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot)
+    trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot, opt.imgSize)
     sub_size = int(len(trainA) * 0.2)
     trainA = trainA[:sub_size]
     trainB = trainB[:sub_size]
