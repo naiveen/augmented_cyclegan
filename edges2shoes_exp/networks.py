@@ -330,6 +330,10 @@ class Discriminator(nn.Module):
             norm_layer(4*ndf),
             nn.LeakyReLU(0.2, True),
 
+            nn.Conv2d(2*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(4*ndf),
+            nn.LeakyReLU(0.2, True),
+
             nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=1, padding=1, bias=use_bias),
             norm_layer(4*ndf),
             nn.LeakyReLU(0.2, True),
@@ -371,6 +375,14 @@ class Discriminator_edges(nn.Module):
             nn.LeakyReLU(0.2, True),
 
             nn.Conv2d(2*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(4*ndf),
+            nn.LeakyReLU(0.2, True),
+
+            nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(4*ndf),
+            nn.LeakyReLU(0.2, True),
+
+            nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(4*ndf),
             nn.LeakyReLU(0.2, True),
 
@@ -461,6 +473,10 @@ class LatentEncoder(nn.Module):
             nn.ReLU(True),
 
             nn.Conv2d(4*nef, 8*nef, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            norm_layer(8*nef),
+            nn.ReLU(True),
+
+            nn.Conv2d(8*nef, 8*nef, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(8*nef),
             nn.ReLU(True),
 

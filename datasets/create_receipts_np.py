@@ -14,8 +14,8 @@ IMG_EXTENSIONS = [
 ]
 
 MAX_IMAGES = 2000
-#IMAGE_SIZE = (512, 512)
-IMAGE_SIZE = (128, 128)
+IMAGE_SIZE = (512, 512)
+# IMAGE_SIZE = (128, 128)
 # IMAGE_SIZE = (64, 64)
 
 def is_image_file(filename):
