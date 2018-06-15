@@ -54,12 +54,10 @@ Assuming that each of the receipts datasets is in `/mnt/projects/ripples/data/re
 
 ```sh
 make runi
-python datasets/create_receipts_np.py
+python datasets/create_receipts_np.py --imgSize 128 --maxImages 2000
 ```
 
-This will generate `.npy` files inside `datasets/receipts` directory, with each file name (`trainA`, `trainB`, `valA`, `valB`) suffixed by the image size (assuming square images). The default image size is `64` and the maximum size of the datasets is `2000`. 
-To generate images of different size or to load more images, 
-change the values of variables `IMAGE_SIZE` and/or `MAX_IMAGES` in `datasets/create_receipts_np.py`.
+This will generate `.npy` files inside `datasets/receipts` directory, with each file name (`trainA`, `trainB`, `valA`, `valB`) suffixed by the image size, here `128` (assuming square images). The default image size is `64` and the maximum size of the datasets is `2000`. 
 
 
 ## Running the model
