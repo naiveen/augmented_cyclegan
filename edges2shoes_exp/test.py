@@ -32,8 +32,9 @@ def visualize_multi_cycle(opt, real_B, model, name='multi_cycle_test.png'):
 
 def visualize_cycle_B_multi(opt, real_B, model, name='cycle_B_multi_test.png'):
     size = real_B.size()
-    multi_prior_z_B = Variable(real_B.data.new(opt.num_multi,
-        opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1), volatile=True)
+    with torch.no_grad():
+        multi_prior_z_B = Variable(real_B.data.new(opt.num_multi,
+            opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1))
     fake_A, multi_fake_B = model.generate_cycle_B_multi(real_B, multi_prior_z_B)
     multi_fake_B = multi_fake_B.data.cpu().view(
         size[0], opt.num_multi, size[1], size[2], size[3])
@@ -47,8 +48,9 @@ def visualize_cycle_B_multi(opt, real_B, model, name='cycle_B_multi_test.png'):
 def visualize_multi(opt, real_A, model, name='multi_test.png'):
     size = real_A.size()
     # all samples in real_A share the same prior_z_B
-    multi_prior_z_B = Variable(real_A.data.new(opt.num_multi,
-        opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1), volatile=True)
+    with torch.no_grad():
+        multi_prior_z_B = Variable(real_A.data.new(opt.num_multi,
+            opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1))
     multi_fake_B = model.generate_multi(real_A.detach(), multi_prior_z_B)
     multi_fake_B = multi_fake_B.data.cpu().view(
         size[0], opt.num_multi, size[1], size[2], size[3])
@@ -81,7 +83,8 @@ def sensitivity_to_edge_noise(opt, model, data_B, use_gpu=True):
     """This is inspired from: https://arxiv.org/pdf/1712.02950.pdf"""
     res = []
     for std in [0, 0.1, 0.2, 0.5, 1, 2, 3, 5]:
-        real_B = Variable(data_B, volatile=True)
+        with torch.no_grad():
+            real_B = Variable(data_B)
         if use_gpu:
             real_B = real_B.cuda()
         rec_B = model.generate_noisy_cycle(real_B, std)
@@ -281,9 +284,9 @@ def test_model():
         n_vis = 10
         dev_dataset = AlignedIterator(devA, devB, batch_size=n_vis)
         for i, vis_data in enumerate(dev_dataset):
-            real_A, real_B = Variable(vis_data['A'], volatile=True), \
-                             Variable(vis_data['B'], volatile=True)
-            prior_z_B = Variable(real_A.data.new(n_vis, opt.nlatent, 1, 1).normal_(0, 1), volatile=True)
+            with torch.no_grad():
+                real_A, real_B = Variable(vis_data['A']), Variable(vis_data['B'])
+                prior_z_B = Variable(real_A.data.new(n_vis, opt.nlatent, 1, 1).normal_(0, 1))
 
             if use_gpu:
                 real_A = real_A.cuda()

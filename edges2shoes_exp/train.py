@@ -63,23 +63,16 @@ def visualize_multi(opt, real_A, model, eidx, uidx):
     with torch.no_grad():
         size = real_A.size()
         # all samples in real_A share the same prior_z_B
-        print("STEP 1")
         multi_prior_z_B = Variable(real_A.data.new(opt.num_multi,
             opt.nlatent, 1, 1).normal_(0, 1).repeat(size[0],1,1,1))
-        print("STEP 2")
         multi_fake_B = model.generate_multi(real_A.detach(), multi_prior_z_B)
-        print("STEP 3")
         multi_fake_B = multi_fake_B.data.cpu().view(
             size[0], opt.num_multi, size[1], size[2], size[3])
-        print("STEP 4")
         vis_multi_image = torch.cat([real_A.data.cpu().unsqueeze(1), multi_fake_B], dim=1) \
             .view(size[0]*(opt.num_multi+1),size[1],size[2],size[3])
-        print("STEP 5")
         save_path = os.path.join(opt.vis_multi, 'multi_%02d_%04d.png' % (eidx, uidx))
-        print("STEP 6")
         vutils.save_image(vis_multi_image.cpu(), save_path,
             normalize=True, range=(-1,1), nrow=opt.num_multi+1)
-        print("STEP 7")
         copyfile(save_path, os.path.join(opt.vis_latest, 'multi.png'))
 
 def visualize_inference(opt, real_A, real_B, model, eidx, uidx):
@@ -233,7 +226,6 @@ def train_model():
 
             if total_steps % opt.display_freq == 0:
                 with torch.no_grad():
-                    # print("============= Visualizing Cycles ==============")
                     # visualize current training batch
                     visualize_cycle(opt, real_A, visuals, epoch, epoch_iter/opt.batchSize, train=True)
 
@@ -250,13 +242,14 @@ def train_model():
                     dev_visuals = model.generate_cycle(dev_real_A, dev_real_B, dev_prior_z_B)
                     visualize_cycle(opt, dev_real_A, dev_visuals, epoch, epoch_iter/opt.batchSize, train=False)
 
-                    print("============= Visualizing Multi ==============")
+                    ############# YOU CAN REMOVE THIS IF YOU RUN OUT OF MEMORY #####################
                     # visualize generated B with different z_B
                     visualize_multi(opt, dev_real_A, model, epoch, epoch_iter/opt.batchSize)
 
-                    #if vis_inf:
-                    #    # visualize generated B with different z_B infered from real_B
-                    #    visualize_inference(opt, dev_real_A, dev_real_B, model, epoch, epoch_iter/opt.batchSize)
+                    ############# YOU CAN REMOVE THIS IF YOU RUN OUT OF MEMORY #####################
+                    if vis_inf:
+                        # visualize generated B with different z_B infered from real_B
+                        visualize_inference(opt, dev_real_A, dev_real_B, model, epoch, epoch_iter/opt.batchSize)
 
             if total_steps % opt.print_freq == 0:
                 t = (time.time() - print_start_time) / opt.batchSize
@@ -275,7 +268,7 @@ def train_model():
         #####################
         # evaluate mappings
         #####################
-        if False: # epoch % opt.eval_A_freq == 0:
+        if epoch % opt.eval_A_freq == 0:
             t = time.time()
             dev_mse_A = eval_mse_A(dev_dataset, model)
             test_mse_A = eval_mse_A(test_dataset, model)
@@ -288,15 +281,17 @@ def train_model():
                 with open("%s/best_mse_A.txt" % opt.expr_dir, 'w') as best_mse_A_f:
                     best_mse_A_f.write(res_str_list[0]+'\n')
                     best_mse_A_f.flush()
-                results['best_dev_mse_A'] = dev_mse_A
-                results['best_test_mse_A'] = test_mse_A
+                # This is necessary to convert the float32 format to float64.
+                # Otherwise, we cannot do a json dump of this data.
+                results['best_dev_mse_A'] = 1*dev_mse_A
+                results['best_test_mse_A'] = 1*test_mse_A
                 model.save('best_A')
                 save_results(opt.expr_dir, results)
                 res_str_list += ["*** BEST DEV A ***"]
             res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
             print_log(out_f, res_str)
 
-        if False: # epoch % opt.eval_B_freq == 0:
+        if  epoch % opt.eval_B_freq == 0:
             t = time.time()
             if opt.model == 'cycle_gan':
                 steps = 1
@@ -315,8 +310,11 @@ def train_model():
                 with open("%s/best_bpp_B.txt" % opt.expr_dir, 'w') as best_bpp_B_f:
                     best_bpp_B_f.write(res_str_list[0]+'\n')
                     best_bpp_B_f.flush()
-                results['best_dev_bpp_B'] = dev_bpp_B
-                results['best_test_bpp_B'] = test_bpp_B
+                # This is necessary to convert the float32 format to float64.
+                # Otherwise, we cannot do a json dump of this data.
+                results['best_dev_bpp_B'] = 1*dev_bpp_B
+                results['best_test_bpp_B'] = 1*test_bpp_B
+                print("======= results =======>", results)
                 save_results(opt.expr_dir, results)
                 model.save('best_B')
                 res_str_list += ["*** BEST BPP B ***"]
