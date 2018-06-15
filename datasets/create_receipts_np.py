@@ -14,7 +14,8 @@ IMG_EXTENSIONS = [
 ]
 
 MAX_IMAGES = 2000
-IMAGE_SIZE = (512, 512)
+# IMAGE_SIZE = (512, 512)
+IMAGE_SIZE = (256, 256)
 # IMAGE_SIZE = (128, 128)
 # IMAGE_SIZE = (64, 64)
 
@@ -44,6 +45,7 @@ args = parser.parse_args()
 root = args.root
 
 for subset in ['val', 'train']:
+    print("Loading images for", subset)
     # dir_A = os.path.join(root, '%sA' % subset)
     # dir_B = os.path.join(root, '%sB' % subset)
     dir_A = REAL_PATH
@@ -54,11 +56,13 @@ for subset in ['val', 'train']:
     mem_B_np = []
 
     # Convert to np array
+    print("Converting A for ", subset)
     for i, A in enumerate(A_paths):
         mem_A_np.append(np.asarray(Image.open(A).convert('RGB').resize(IMAGE_SIZE, Image.BICUBIC)))
         if i % 100 == 0:
             print(i)
 
+    print("Converting B for ", subset)
     # Convert to np array
     for i, B in enumerate(B_paths):
         mem_B_np.append(np.asarray(Image.open(B).convert('RGB').resize(IMAGE_SIZE, Image.BICUBIC)))

@@ -9,7 +9,7 @@ reqCores: 1
 reqGpus: 5
 reqRamGbytes: 64 
 volumes: 
-    - /mnt/home/perouz/repl_gen/Experiments/augCycleGANs:/eai/project
+    - /home/perouz/repl_gen/Experiments/augCycleGANs:/eai/project
     - /mnt/projects/:/eai/projects
 workdir:
     "/eai/project"

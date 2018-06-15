@@ -5,6 +5,9 @@
 ipython
 pylama==7.4.1
 #
+# PyTorch with CUDA 9.0 (see eai-ocr issue #629 for details)
+https://download.pytorch.org/whl/cu90/torch-0.4.0-cp36-cp36m-linux_x86_64.whl
+
 http://distrib.borgy.elementai.lan/python/borgy-job-service-client/borgy-job-service-client-1.0.0.tar.gz
 torchvision
 

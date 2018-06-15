@@ -6,6 +6,7 @@ from torch.autograd import Variable
 import numpy as np
 from modules import ResnetBlock, CondInstanceNorm, TwoInputSequential, CINResnetBlock, InstanceNorm2d
 
+
 ###############################################################################
 # Functions
 ###############################################################################

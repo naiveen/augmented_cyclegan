@@ -224,8 +224,8 @@ class StochCycleGAN(object):
         B = real_B
         for i in range(steps):
             A = self.netG_B_A.forward(B)
-            z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1),
-                           volatile=True)
+            with torch.no_grad():
+                z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1))
             if self.ignore_noise:
                 z_B = z_B.mul(0.).add(1.)
             B = self.netG_A_B.forward(A, z_B)
@@ -246,8 +246,8 @@ class StochCycleGAN(object):
 
     def generate_noisy_cycle(self, real_B, std):
         fake_A = self.netG_B_A.forward(real_B)
-        z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1),
-                       volatile=True)
+        with torch.no_grad():
+            z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1))
         if self.ignore_noise:
             z_B = z_B.mul(0.).add(1.)
         noise_std = std / 127.5
@@ -728,7 +728,8 @@ class AugmentedCycleGAN(object):
         else:
             post_z_B = mu_z_B.view(mu_z_B.size(0), mu_z_B.size(1), 1, 1)
 
-        multi_post_z_B = Variable(post_z_B.data.repeat(size[0],1,1,1), volatile=True)
+        with torch.no_grad():
+            multi_post_z_B = Variable(post_z_B.data.repeat(size[0],1,1,1))
 
         multi_fake_B = self.netG_A_B.forward(multi_real_A, multi_post_z_B)
 
