@@ -99,11 +99,13 @@ class StochCycleGAN(object):
 
         self.netD_A = networks.define_D_A(input_nc=opt.input_nc,
                                           ndf=32, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_B = networks.define_D_B(input_nc=opt.output_nc,
                                           ndf=opt.ndf, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         ##### define all optimizers here
         self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A_B.parameters(),
@@ -360,16 +362,19 @@ class AugmentedCycleGAN(object):
         enc_input_nc = opt.output_nc
         if opt.enc_A_B:
             enc_input_nc += opt.input_nc
+        print("NET E_B +++++++++++++++++++++>", opt.imgSize)
         self.netE_B = networks.define_E(nlatent=opt.nlatent, input_nc=enc_input_nc,
-                                        nef=opt.nef, norm='batch', gpu_ids=opt.gpu_ids)
+                                        nef=opt.nef, norm='batch', gpu_ids=opt.gpu_ids, img_size=opt.imgSize)
 
         self.netD_A = networks.define_D_A(input_nc=opt.input_nc,
                                           ndf=32, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_B = networks.define_D_B(input_nc=opt.output_nc,
                                           ndf=opt.ndf, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_z_B = networks.define_LAT_D(nlatent=opt.nlatent, ndf=opt.ndf,
                                               use_sigmoid=opt.use_sigmoid,
