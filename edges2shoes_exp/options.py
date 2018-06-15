@@ -44,6 +44,7 @@ class TrainOptions(object):
 
         # training
         self.parser.add_argument('--batchSize', type=int, default=32, help='input batch size')
+        self.parser.add_argument('--imgSize', type=int, default=64, help='input image size (square image imgSize x imgSize)')
         self.parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
         self.parser.add_argument('--which_epoch', type=str, default='latest', help='which epoch to load? set to latest to use latest cached model')
         self.parser.add_argument('--epoch_count', type=int, default=1,

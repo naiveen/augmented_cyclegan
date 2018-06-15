@@ -99,11 +99,13 @@ class StochCycleGAN(object):
 
         self.netD_A = networks.define_D_A(input_nc=opt.input_nc,
                                           ndf=32, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_B = networks.define_D_B(input_nc=opt.output_nc,
                                           ndf=opt.ndf, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         ##### define all optimizers here
         self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A_B.parameters(),
@@ -224,8 +226,8 @@ class StochCycleGAN(object):
         B = real_B
         for i in range(steps):
             A = self.netG_B_A.forward(B)
-            z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1),
-                           volatile=True)
+            with torch.no_grad():
+                z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1))
             if self.ignore_noise:
                 z_B = z_B.mul(0.).add(1.)
             B = self.netG_A_B.forward(A, z_B)
@@ -246,13 +248,13 @@ class StochCycleGAN(object):
 
     def generate_noisy_cycle(self, real_B, std):
         fake_A = self.netG_B_A.forward(real_B)
-        z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1),
-                       volatile=True)
+        with torch.no_grad():
+            z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1))
         if self.ignore_noise:
             z_B = z_B.mul(0.).add(1.)
         noise_std = std / 127.5
-        noisy_fake_A = fake_A + Variable(fake_A.data.new(*fake_A.size()).normal_(0, noise_std),
-                                         volatile=True)
+        with torch.no_grad():
+            noisy_fake_A = fake_A + Variable(fake_A.data.new(*fake_A.size()).normal_(0, noise_std))
         noisy_fake_A = torch.clamp(noisy_fake_A, -1, 1)
         rec_B = self.netG_A_B.forward(noisy_fake_A, z_B)
         return rec_B
@@ -360,16 +362,19 @@ class AugmentedCycleGAN(object):
         enc_input_nc = opt.output_nc
         if opt.enc_A_B:
             enc_input_nc += opt.input_nc
+        print("NET E_B +++++++++++++++++++++>", opt.imgSize)
         self.netE_B = networks.define_E(nlatent=opt.nlatent, input_nc=enc_input_nc,
-                                        nef=opt.nef, norm='batch', gpu_ids=opt.gpu_ids)
+                                        nef=opt.nef, norm='batch', gpu_ids=opt.gpu_ids, img_size=opt.imgSize)
 
         self.netD_A = networks.define_D_A(input_nc=opt.input_nc,
                                           ndf=32, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_B = networks.define_D_B(input_nc=opt.output_nc,
                                           ndf=opt.ndf, which_model_netD=opt.which_model_netD,
-                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids)
+                                          norm=opt.norm, use_sigmoid=opt.use_sigmoid, gpu_ids=opt.gpu_ids,
+                                          img_size=opt.imgSize)
 
         self.netD_z_B = networks.define_LAT_D(nlatent=opt.nlatent, ndf=opt.ndf,
                                               use_sigmoid=opt.use_sigmoid,
@@ -412,6 +417,7 @@ class AugmentedCycleGAN(object):
         else:
             mu_z_realB, logvar_z_realB = self.netE_B.forward(real_B)
 
+        # print("post_z_realB", mu_z_realB.size())
         if self.opt.stoch_enc:
             post_z_realB = gauss_reparametrize(mu_z_realB, logvar_z_realB)
         else:
@@ -426,6 +432,7 @@ class AugmentedCycleGAN(object):
         loss_D_fake_B, loss_D_true_B, pred_fake_B, pred_true_B = \
             discriminate(self.netD_B, self.criterionGAN, fake_B.detach(), real_B)
 
+        # print("loss_D_post_z_B", self.netD_z_B, post_z_realB.shape, prior_z_B.shape)
         loss_D_post_z_B, loss_D_prior_z_B, pred_post_z_B, pred_prior_z_B = \
             discriminate(self.netD_z_B, self.criterionGAN, post_z_realB.detach(), prior_z_B)
 
@@ -626,8 +633,8 @@ class AugmentedCycleGAN(object):
     def generate_noisy_cycle(self, real_B, std):
         fake_A = self.netG_B_A.forward(real_B)
         noise_std = std / 127.5
-        noisy_fake_A = fake_A + Variable(fake_A.data.new(*fake_A.size()).normal_(0, noise_std),
-                                         volatile=True)
+        with torch.no_grad():
+            noisy_fake_A = fake_A + Variable(fake_A.data.new(*fake_A.size()).normal_(0, noise_std))
         noisy_fake_A = torch.clamp(noisy_fake_A, -1, 1)
         if self.opt.enc_A_B:
             concat_B_A = torch.cat((fake_A, real_B), 1)
@@ -667,8 +674,8 @@ class AugmentedCycleGAN(object):
         for i in range(steps):
             A = self.netG_B_A.forward(B)
             if from_prior:
-                z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1),
-                               volatile=True)
+                with torch.no_grad():
+                    z_B = Variable(real_B.data.new(real_B.size(0), self.opt.nlatent, 1, 1).normal_(0, 1))
             else:
                 if self.opt.enc_A_B:
                     concat_B_A = torch.cat((A, B), 1)
@@ -726,7 +733,8 @@ class AugmentedCycleGAN(object):
         else:
             post_z_B = mu_z_B.view(mu_z_B.size(0), mu_z_B.size(1), 1, 1)
 
-        multi_post_z_B = Variable(post_z_B.data.repeat(size[0],1,1,1), volatile=True)
+        with torch.no_grad():
+            multi_post_z_B = Variable(post_z_B.data.repeat(size[0],1,1,1))
 
         multi_fake_B = self.netG_A_B.forward(multi_real_A, multi_post_z_B)
 

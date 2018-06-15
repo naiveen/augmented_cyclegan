@@ -65,7 +65,8 @@ def variational_ubo(model, real_A, real_B, steps, visualize=False, vis_name=None
     iterative_opt = torch.optim.RMSprop([mu, logvar], lr=1e-2)
 
     real_B = real_B + dequant
-    rA = Variable(real_A.data, volatile=True)
+    with torch.no_grad():
+        rA = Variable(real_A.data)
 
     z_B = gauss_reparametrize(mu, logvar)
     fake_B = model.predict_B(real_A, z_B)
@@ -74,8 +75,9 @@ def variational_ubo(model, real_A, real_B, steps, visualize=False, vis_name=None
         if model.opt.stoch_enc:
             rec_B = fake_B
         else:
-            x = Variable(mu.view(mu.size(0), mu.size(1), 1, 1).data, volatile=True)
-            rec_B = model.predict_B(rA, x)
+            with torch.no_grad():
+                x = Variable(mu.view(mu.size(0), mu.size(1), 1, 1).data)
+                rec_B = model.predict_B(rA, x)
 
     if visualize:
         if model.opt.stoch_enc:
@@ -130,8 +132,9 @@ def variational_ubo(model, real_A, real_B, steps, visualize=False, vis_name=None
             if model.opt.stoch_enc:
                 rec_B = fake_B
             else:
-                x = Variable(mu.view(mu.size(0), mu.size(1), 1, 1).data, volatile=True)
-                rec_B = model.predict_B(rA, x)
+                with torch.no_grad():
+                    x = Variable(mu.view(mu.size(0), mu.size(1), 1, 1).data)
+                    rec_B = model.predict_B(rA, x)
 
         if visualize and (i+1) % 100 == 0:
             if model.opt.stoch_enc:

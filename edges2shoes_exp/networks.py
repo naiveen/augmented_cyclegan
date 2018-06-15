@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from torch.nn import init
@@ -5,6 +6,8 @@ import functools
 from torch.autograd import Variable
 import numpy as np
 from modules import ResnetBlock, CondInstanceNorm, TwoInputSequential, CINResnetBlock, InstanceNorm2d
+
+DEFAULT_IMG_SIZE = 64
 
 ###############################################################################
 # Functions
@@ -68,7 +71,7 @@ def define_stochastic_G(nlatent, input_nc, output_nc, ngf, norm='instance',
     return netG
 
 
-def define_D_A(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids=[]):
+def define_D_A(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids=[], img_size=DEFAULT_IMG_SIZE):
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -76,7 +79,8 @@ def define_D_A(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids
     if use_gpu:
         assert(torch.cuda.is_available())
 
-    netD = Discriminator_edges(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+    netD = Discriminator_edges(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids,
+                               img_size=img_size)
 
     if use_gpu:
         netD.cuda()
@@ -84,7 +88,7 @@ def define_D_A(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids
     return netD
 
 
-def define_D_B(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids=[]):
+def define_D_B(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids=[], img_size=DEFAULT_IMG_SIZE):
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -92,7 +96,8 @@ def define_D_B(input_nc, ndf, which_model_netD, norm, use_sigmoid=False, gpu_ids
     if use_gpu:
         assert(torch.cuda.is_available())
 
-    netD = Discriminator(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+    netD = Discriminator(input_nc, ndf, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids,
+                         img_size=img_size)
 
     if use_gpu:
         netD.cuda()
@@ -113,13 +118,13 @@ def define_LAT_D(nlatent, ndf, use_sigmoid=False, gpu_ids=[]):
     netD.apply(weights_init)
     return netD
 
-def define_E(nlatent, input_nc, nef, norm='batch', gpu_ids=[]):
+def define_E(nlatent, input_nc, nef, norm='batch', gpu_ids=[], img_size=64):
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
 
     if use_gpu:
         assert(torch.cuda.is_available())
-    netE = LatentEncoder(nlatent, input_nc, nef, norm_layer=norm_layer, gpu_ids=gpu_ids)
+    netE = LatentEncoder(nlatent, input_nc, nef, norm_layer=norm_layer, gpu_ids=gpu_ids, img_size=img_size)
 
     if use_gpu:
         netE.cuda()
@@ -169,7 +174,7 @@ class CINResnetGenerator(nn.Module):
             norm_layer(4*ngf, nlatent),
             nn.ReLU(True)
         ]
-        
+
         for i in range(3):
             model += [CINResnetBlock(x_dim=4*ngf, z_dim=nlatent, padding_type=padding_type,
                                      norm_layer=norm_layer, use_dropout=use_dropout, use_bias=True)]
@@ -307,7 +312,7 @@ class CINDiscriminator(nn.Module):
 ######################################################################
 class Discriminator(nn.Module):
     def __init__(self, input_nc, ndf=64, norm_layer=nn.BatchNorm2d,
-                 use_sigmoid=False, gpu_ids=[]):
+                 use_sigmoid=False, gpu_ids=[], img_size=DEFAULT_IMG_SIZE):
         """
         nlatent: number of channles in both latent codes (or one of them - depending on the model)
         input_nc: number of channels in input and output (assumes both inputs are concatenated)
@@ -316,6 +321,7 @@ class Discriminator(nn.Module):
         self.gpu_ids = gpu_ids
 
         use_bias = True
+        self.img_size = img_size
 
         kw = 4
         sequence = [
@@ -332,8 +338,28 @@ class Discriminator(nn.Module):
 
             nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=1, padding=1, bias=use_bias),
             norm_layer(4*ndf),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2, True)
 
+            #nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=1, padding=1, bias=use_bias),
+            #norm_layer(4*ndf),
+            #nn.LeakyReLU(0.2, True),
+
+            #nn.Conv2d(4*ndf, 1, kernel_size=kw, stride=1, padding=1)
+        ]
+
+        if self.img_size > DEFAULT_IMG_SIZE:
+            # If img_size = 512, we need to add three more cnn layers (64 --> 128 --> 256 --> 512)
+            new_layer = [
+                nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=1, padding=1, bias=use_bias),
+                norm_layer(4*ndf),
+                nn.LeakyReLU(0.2, True)
+            ]
+            number_new_layers = int(math.log(self.img_size/DEFAULT_IMG_SIZE, 2))
+            for i in range(number_new_layers):
+                sequence += new_layer
+
+        # Add the last layer
+        sequence += [
             nn.Conv2d(4*ndf, 1, kernel_size=kw, stride=1, padding=1)
         ]
 
@@ -351,7 +377,7 @@ class Discriminator(nn.Module):
 
 class Discriminator_edges(nn.Module):
     def __init__(self, input_nc, ndf=64, norm_layer=nn.BatchNorm2d,
-                 use_sigmoid=False, gpu_ids=[]):
+                 use_sigmoid=False, gpu_ids=[], img_size=DEFAULT_IMG_SIZE):
         """
         nlatent: number of channles in both latent codes (or one of them - depending on the model)
         input_nc: number of channels in input and output (assumes both inputs are concatenated)
@@ -360,6 +386,7 @@ class Discriminator_edges(nn.Module):
         self.gpu_ids = gpu_ids
 
         use_bias = True
+        self.img_size = img_size
 
         kw = 3
         sequence = [
@@ -376,10 +403,41 @@ class Discriminator_edges(nn.Module):
 
             nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(4*ndf),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2, True)
 
+            #nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            #norm_layer(4*ndf),
+            #nn.LeakyReLU(0.2, True),
+
+            #nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            #norm_layer(4*ndf),
+            #nn.LeakyReLU(0.2, True),
+
+            #nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+            #norm_layer(4*ndf),
+            #nn.LeakyReLU(0.2, True),
+
+            #nn.Conv2d(4*ndf, 1, kernel_size=4, stride=1, padding=0, bias=True)
+        ]
+
+        if self.img_size > DEFAULT_IMG_SIZE:
+            # If img_size = 512, we need to add three more cnn layers (64 --> 128 --> 256 --> 512)
+            new_layer = [
+                nn.Conv2d(4*ndf, 4*ndf, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+                norm_layer(4*ndf),
+                nn.LeakyReLU(0.2, True)
+            ]
+            number_new_layers = int(math.log(self.img_size/DEFAULT_IMG_SIZE, 2))
+            for i in range(number_new_layers):
+                sequence += new_layer
+
+        # Add the last layer
+        sequence += [
             nn.Conv2d(4*ndf, 1, kernel_size=4, stride=1, padding=0, bias=True)
         ]
+
+        if use_sigmoid:
+            sequence += [nn.Sigmoid()]
 
         if use_sigmoid:
             sequence += [nn.Sigmoid()]
@@ -425,6 +483,8 @@ class DiscriminatorLatent(nn.Module):
 
     def forward(self, input):
         if input.dim() == 4:
+            #nlatent_temp = input.size(1)*input.size(2)*input.size(3)
+            #input = input.view(input.size(0), nlatent)
             input = input.view(input.size(0), self.nlatent)
 
         if len(self.gpu_ids)>1 and isinstance(input.data, torch.cuda.FloatTensor):
@@ -436,12 +496,14 @@ class DiscriminatorLatent(nn.Module):
 # Encoder network for latent variables
 ######################################################################
 class LatentEncoder(nn.Module):
-    def __init__(self, nlatent, input_nc, nef, norm_layer, gpu_ids=[]):
+    def __init__(self, nlatent, input_nc, nef, norm_layer, gpu_ids=[], img_size=DEFAULT_IMG_SIZE):
         super(LatentEncoder, self).__init__()
         self.gpu_ids = gpu_ids
         use_bias = False
+        self.img_size = img_size
 
         kw = 3
+        # First build a sequence for image of size 64. Then add layers as needed.
         sequence = [
             nn.Conv2d(input_nc, nef, kernel_size=kw, stride=2, padding=1, bias=True),
             nn.ReLU(True),
@@ -456,12 +518,25 @@ class LatentEncoder(nn.Module):
 
             nn.Conv2d(4*nef, 8*nef, kernel_size=kw, stride=2, padding=1, bias=use_bias),
             norm_layer(8*nef),
-            nn.ReLU(True),
+            nn.ReLU(True)
+        ]
 
+        if self.img_size > DEFAULT_IMG_SIZE:
+            # If img_size = 512, we need to add three more cnn layers (64 --> 128 --> 256 --> 512)
+            new_layer = [
+                nn.Conv2d(8*nef, 8*nef, kernel_size=kw, stride=2, padding=1, bias=use_bias),
+                norm_layer(8*nef),
+                nn.ReLU(True)
+            ]
+            number_new_layers = int(math.log(self.img_size/DEFAULT_IMG_SIZE, 2))
+            for i in range(number_new_layers):
+                sequence += new_layer
+
+        # Add the last layer
+        sequence += [
             nn.Conv2d(8*nef, 8*nef, kernel_size=4, stride=1, padding=0, bias=use_bias),
             norm_layer(8*nef),
-            nn.ReLU(True),
-
+            nn.ReLU(True)
         ]
 
         self.conv_modules = nn.Sequential(*sequence)
@@ -479,5 +554,6 @@ class LatentEncoder(nn.Module):
             conv_out = self.conv_modules(input)
             mu = self.enc_mu(conv_out)
             logvar = self.enc_logvar(conv_out)
+            # print("LatentEncoder.forward", mu.shape, logvar.shape, conv_out.shape)
         return (mu.view(mu.size(0), -1), logvar.view(logvar.size(0), -1))
 

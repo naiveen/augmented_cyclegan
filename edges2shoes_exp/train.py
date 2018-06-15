@@ -47,6 +47,7 @@ def format_log(epoch, i, errors, t, prefix=True):
 def visualize_cycle(opt, real_A, visuals, eidx, uidx, train):
     size = real_A.size()
 
+    #print("RESIZE IMAGES FOR VISUALIZING")
     images = [img.cpu().unsqueeze(1) for img in visuals.values()]
     vis_image = torch.cat(images, dim=1).view(size[0]*len(images),size[1],size[2],size[3])
     if train:
@@ -110,9 +111,15 @@ def train_model():
             torch.cuda.manual_seed_all(opt.seed)
 
     if opt.numpy_data:
-        trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot)
+        trainA, trainB, devA, devB, testA, testB = load_edges2shoes(opt.dataroot, opt.imgSize)
         train_dataset = UnalignedIterator(trainA, trainB, batch_size=opt.batchSize)
 
+        print("Train dataset in train_model:", trainA.shape)
+        # Make sure you never run with a batch of size 1
+        if trainA.shape[0]<=1:
+            return
+
+        print("Training data", trainA.shape)
         print_log(out_f, '#training images = %d' % len(train_dataset))
         vis_inf = False
 
@@ -191,8 +198,7 @@ def train_model():
 
         for i, data in enumerate(train_dataset):
             real_A, real_B = Variable(data['A']), Variable(data['B'])
-            print("================================ ", real_A.shape, real_B.shape)
-            if real_A.size(0) != real_B.size(0):
+            if real_A.size(0) != real_B.size(0) or real_A.size(0) <= 1 or real_B.size(0) <=1:
                 continue
             prior_z_B = Variable(real_A.data.new(real_A.size(0), opt.nlatent, 1, 1).normal_(0, 1))
 
@@ -219,29 +225,31 @@ def train_model():
                 sup_losses = model.supervised_train_instance(sup_real_A, sup_real_B, prior_z_B)
 
             if total_steps % opt.display_freq == 0:
+                with torch.no_grad():
+                    # visualize current training batch
+                    visualize_cycle(opt, real_A, visuals, epoch, epoch_iter/opt.batchSize, train=True)
 
-                # visualize current training batch
-                visualize_cycle(opt, real_A, visuals, epoch, epoch_iter/opt.batchSize, train=True)
+                    #dev_data = dev_cycle.next()
+                    dev_data = next(dev_cycle)
+                    dev_real_A, dev_real_B = Variable(dev_data['A']), Variable(dev_data['B'])
+                    dev_prior_z_B = Variable(dev_real_A.data.new(dev_real_A.size(0),
+                                                                 opt.nlatent, 1, 1).normal_(0, 1))
+                    if use_gpu:
+                        dev_real_A = dev_real_A.cuda()
+                        dev_real_B = dev_real_B.cuda()
+                        dev_prior_z_B = dev_prior_z_B.cuda()
 
-                #dev_data = dev_cycle.next()
-                dev_data = next(dev_cycle)
-                dev_real_A, dev_real_B = Variable(dev_data['A']), Variable(dev_data['B'])
-                dev_prior_z_B = Variable(dev_real_A.data.new(dev_real_A.size(0),
-                                                             opt.nlatent, 1, 1).normal_(0, 1))
-                if use_gpu:
-                    dev_real_A = dev_real_A.cuda()
-                    dev_real_B = dev_real_B.cuda()
-                    dev_prior_z_B = dev_prior_z_B.cuda()
+                    dev_visuals = model.generate_cycle(dev_real_A, dev_real_B, dev_prior_z_B)
+                    visualize_cycle(opt, dev_real_A, dev_visuals, epoch, epoch_iter/opt.batchSize, train=False)
 
-                dev_visuals = model.generate_cycle(dev_real_A, dev_real_B, dev_prior_z_B)
-                visualize_cycle(opt, dev_real_A, dev_visuals, epoch, epoch_iter/opt.batchSize, train=False)
+                    ############# YOU CAN REMOVE THIS IF YOU RUN OUT OF MEMORY #####################
+                    # visualize generated B with different z_B
+                    visualize_multi(opt, dev_real_A, model, epoch, epoch_iter/opt.batchSize)
 
-                # visualize generated B with different z_B
-                visualize_multi(opt, dev_real_A, model, epoch, epoch_iter/opt.batchSize)
-
-                if vis_inf:
-                    # visualize generated B with different z_B infered from real_B
-                    visualize_inference(opt, dev_real_A, dev_real_B, model, epoch, epoch_iter/opt.batchSize)
+                    ############# YOU CAN REMOVE THIS IF YOU RUN OUT OF MEMORY #####################
+                    if vis_inf:
+                        # visualize generated B with different z_B infered from real_B
+                        visualize_inference(opt, dev_real_A, dev_real_B, model, epoch, epoch_iter/opt.batchSize)
 
             if total_steps % opt.print_freq == 0:
                 t = (time.time() - print_start_time) / opt.batchSize
@@ -260,7 +268,7 @@ def train_model():
         #####################
         # evaluate mappings
         #####################
-        if False: # epoch % opt.eval_A_freq == 0:
+        if epoch % opt.eval_A_freq == 0:
             t = time.time()
             dev_mse_A = eval_mse_A(dev_dataset, model)
             test_mse_A = eval_mse_A(test_dataset, model)
@@ -273,15 +281,17 @@ def train_model():
                 with open("%s/best_mse_A.txt" % opt.expr_dir, 'w') as best_mse_A_f:
                     best_mse_A_f.write(res_str_list[0]+'\n')
                     best_mse_A_f.flush()
-                results['best_dev_mse_A'] = dev_mse_A
-                results['best_test_mse_A'] = test_mse_A
+                # This is necessary to convert the float32 format to float64.
+                # Otherwise, we cannot do a json dump of this data.
+                results['best_dev_mse_A'] = 1*dev_mse_A
+                results['best_test_mse_A'] = 1*test_mse_A
                 model.save('best_A')
                 save_results(opt.expr_dir, results)
                 res_str_list += ["*** BEST DEV A ***"]
             res_str = "\n".join(["-"*60] + res_str_list + ["-"*60])
             print_log(out_f, res_str)
 
-        if False: # epoch % opt.eval_B_freq == 0:
+        if  epoch % opt.eval_B_freq == 0:
             t = time.time()
             if opt.model == 'cycle_gan':
                 steps = 1
@@ -300,8 +310,11 @@ def train_model():
                 with open("%s/best_bpp_B.txt" % opt.expr_dir, 'w') as best_bpp_B_f:
                     best_bpp_B_f.write(res_str_list[0]+'\n')
                     best_bpp_B_f.flush()
-                results['best_dev_bpp_B'] = dev_bpp_B
-                results['best_test_bpp_B'] = test_bpp_B
+                # This is necessary to convert the float32 format to float64.
+                # Otherwise, we cannot do a json dump of this data.
+                results['best_dev_bpp_B'] = 1*dev_bpp_B
+                results['best_test_bpp_B'] = 1*test_bpp_B
+                print("======= results =======>", results)
                 save_results(opt.expr_dir, results)
                 model.save('best_B')
                 res_str_list += ["*** BEST BPP B ***"]
