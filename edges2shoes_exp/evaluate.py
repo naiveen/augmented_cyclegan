@@ -15,7 +15,7 @@ def eval_mse_A(dataset, model, use_gpu=True):
             real_A = real_A.cuda()
             real_B = real_B.cuda()
         pred_A = model.predict_A(real_B)
-        mse_A.append(F.mse_loss(pred_A, real_A).data[0])
+        mse_A.append(F.mse_loss(pred_A, real_A).data.cpu())
     return np.mean(mse_A)
 
 def eval_ubo_B(dataset, model, steps=500, visualize=False, vis_name=None, vis_path=None,
@@ -31,9 +31,9 @@ def eval_ubo_B(dataset, model, steps=500, visualize=False, vis_name=None, vis_pa
         ubo, kld, bpp = variational_ubo(model, real_A, real_B, steps,
                                         visualize, vis_name, vis_path, verbose, logvar_B,
                                         use_gpu, vis_batch, compute_l1)
-        ubo_B.append(ubo)
-        bpp_B.append(bpp)
-        kld_B.append(kld)
+        ubo_B.append(ubo.cpu())
+        bpp_B.append(bpp.cpu())
+        kld_B.append(kld.cpu())
     return np.mean(ubo_B), np.mean(bpp_B), np.mean(kld_B)
 
 def variational_ubo(model, real_A, real_B, steps, visualize=False, vis_name=None, vis_path=None,
@@ -106,11 +106,11 @@ def variational_ubo(model, real_A, real_B, steps, visualize=False, vis_name=None
         kld = kld_std_guss(mu, logvar)
 
         ubo = (-log_prob + kld) + (64*64*3) * math.log(127.5)
-        ubo_val_new = ubo.mean(0).data[0]
-        kld_val = kld.mean(0).data[0]
-        bpp = ubo.mean(0).data[0] / (64*64*3* math.log(2.))
+        ubo_val_new = ubo.mean(0).data
+        kld_val = kld.mean(0).data
+        bpp = ubo.mean(0).data / (64*64*3* math.log(2.))
         if compute_l1:
-            l1_loss = F.l1_loss(real_B, rec_B).mean(0).data[0]
+            l1_loss = F.l1_loss(real_B, rec_B).mean(0).data
         if verbose:
             res_str = '[%d] UBO: %.4f, KLD: %.4f, BPP: %.4f' % (i, ubo_val_new, kld_val, bpp)
             if compute_l1:

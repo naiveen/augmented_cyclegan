@@ -27,9 +27,12 @@ def make_dataset(dir):
 
 parser = argparse.ArgumentParser('create numpy data from image folders')
 parser.add_argument('--root', help='data directory', type=str, default='./edges2shoes')
+parser.add_argument('--imgSize', type=int, default=64, help='input image size (square image imgSize x imgSize)')
+
 args = parser.parse_args()
 
 root = args.root
+imgSize = args.imgSize
 
 for subset in ['val', 'train']:
     dir_A = os.path.join(root, '%sA' % subset)
@@ -39,8 +42,8 @@ for subset in ['val', 'train']:
     mem_A_np = []
     mem_B_np = []
     for i, (A, B) in enumerate(zip(A_paths, B_paths)):
-        mem_A_np.append(np.asarray(Image.open(A).convert('RGB').resize((64,64), Image.BICUBIC)))
-        mem_B_np.append(np.asarray(Image.open(B).convert('RGB').resize((64,64), Image.BICUBIC)))
+        mem_A_np.append(np.asarray(Image.open(A).convert('RGB').resize((imgSize,imgSize), Image.BICUBIC)))
+        mem_B_np.append(np.asarray(Image.open(B).convert('RGB').resize((imgSize,imgSize), Image.BICUBIC)))
         if i % 1000 == 0:
             print(i)
     full_A = np.stack(mem_A_np)
@@ -50,5 +53,5 @@ for subset in ['val', 'train']:
     B_size = len(mem_B_np)
     print("%sA size=%d" % (subset, A_size))
     print("%sB size=%d" % (subset, B_size))
-    np.save(os.path.join(root, "%sA" % subset), full_A)
-    np.save(os.path.join(root, "%sB" % subset), full_B)
+    np.save(os.path.join(root, "%sA_%d" % (subset,imgSize)), full_A)
+    np.save(os.path.join(root, "%sB_%d" % (subset,imgSize)), full_B)

@@ -522,10 +522,10 @@ class AugmentedCycleGAN(object):
         self.optimizer_G_B.step()
 
         ##### Return dicts
-        losses  = OrderedDict([('D_A', loss_D_A.data[0]), ('G_A', loss_G_A.data[0]), ('Cyc_A', loss_cycle_A.data[0]),
-                               ('Cyc_z_B', loss_cycle_z_B.data[0]), ('KLD_z_B', kld_z_B.data[0]),
-                               ('D_B', loss_D_B.data[0]), ('G_B', loss_G_B.data[0]), ('Cyc_B', loss_cycle_B.data[0]),
-                               ('D_z_B', loss_D_z_B.data[0]),
+        losses  = OrderedDict([('D_A', loss_D_A.data), ('G_A', loss_G_A.data), ('Cyc_A', loss_cycle_A.data),
+                               ('Cyc_z_B', loss_cycle_z_B.data), ('KLD_z_B', kld_z_B.data),
+                               ('D_B', loss_D_B.data), ('G_B', loss_G_B.data), ('Cyc_B', loss_cycle_B.data),
+                               ('D_z_B', loss_D_z_B.data),
                                ('P_t_A', pred_true_A.data.mean()), ('P_f_A', pred_fake_A.data.mean()),
                                ('P_t_B', pred_true_B.data.mean()), ('P_f_B', pred_fake_B.data.mean())])
         visuals = OrderedDict([('real_A', real_A.data), ('fake_B', fake_B.data), ('rec_A', rec_A.data),
